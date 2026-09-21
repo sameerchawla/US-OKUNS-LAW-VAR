@@ -1,509 +1,235 @@
-ynamic Okun's Law in the United States
+# Output Growth and Unemployment Dynamics in the United States
+### A Bivariate VAR Test of Okun's Law, 1984Q1–2019Q4
 
-A Bivariate VAR Analysis of Real GDP Growth and Changes in Unemployment, 1984Q1–2019Q4
+A time-series investigation into the dynamic relationship between real GDP growth and changes in unemployment — using a bivariate VAR to test whether the negative co-movement predicted by Okun's Law is a genuine, temporally-ordered dynamic relationship rather than a purely contemporaneous correlation.
 
+## Author
 
+| | |
+|---|---|
+| Name | Sameer Chawla |
+| Programme | MSc Economics |
+| Institution | Gokhale Institute of Politics and Economics (GIPE), Pune |
+| Expected Graduation | 2027 |
 
+## Table of Contents
 
+1. [Project Overview](#1-project-overview)
+2. [Research Question & Empirical Strategy](#2-research-question--empirical-strategy)
+3. [Data & Variable Construction](#3-data--variable-construction)
+4. [Methodological Pipeline](#4-methodological-pipeline)
+5. [Key Results](#5-key-results)
+6. [Methodological Caveats & Limitations](#6-methodological-caveats--limitations)
+7. [How to Run](#7-how-to-run)
+8. [References](#8-references)
 
+## 1. Project Overview
 
-This project studies the short-run dynamic relationship between U.S. real GDP growth and changes in the unemployment rate using a bivariate Vector Autoregression (VAR). The goal is not to claim structural causality, but to test whether output growth contains predictive information for subsequent unemployment changes and to examine how the two variables respond dynamically to innovations in the system.
+Okun's Law is conventionally estimated as a single static regression of unemployment (or its change) on output growth. This treats the relationship as one-directional and contemporaneous by construction, which forecloses two questions that matter for both theory and policy: does output growth *lead* unemployment, does unemployment feed back onto growth, and how long do these effects persist?
 
-The project is designed as an MSc-level applied econometrics exercise with emphasis on transparent model specification, stationarity testing, lag selection, residual diagnostics, Granger causality, impulse responses, forecast-error variance decomposition, and robustness checks.
+This project instead models the joint dynamics of **GDP growth** and the **change in the unemployment rate** as a bivariate Vector Autoregression (VAR). The VAR framework treats both series as endogenous, recovers the full dynamic response of each variable to a shock in the other via impulse response functions, decomposes forecast error variance, and tests the direction of causality formally (Granger, 1969) rather than assuming it.
 
-Contents
+*Working research question (to be refined):* does the inverse Okun relationship hold as a genuine dynamic, temporally-ordered pattern in the US data — i.e., does a GDP growth shock Granger-cause a fall in unemployment, is the reverse channel absent, and is this pattern stable across sub-samples and identification orderings?
 
-Research question
+## 2. Research Question & Empirical Strategy
 
-Data and variables
+**Empirical Model — Reduced-Form VAR(p)**
 
-Econometric strategy
+$$
+Y_t = c + \sum_{i=1}^{p} A_i \, Y_{t-i} + \varepsilon_t, \qquad \varepsilon_t \sim \text{WN}(0, \Sigma)
+$$
 
-Main results
+where the endogenous vector is
 
-Impulse-response analysis
+$$
+Y_t = \begin{bmatrix} \text{GDP\_Growth}_t \\ \Delta\text{Unemployment}_t \end{bmatrix}
+$$
 
-Variance decomposition
+$c$ is a constant vector, $A_i$ are $2\times2$ coefficient matrices for lag $i$, and $\Sigma$ is the residual covariance matrix. Written out for a lag order $p$, the two estimating equations are:
 
-Diagnostics and robustness
+$$
+\text{GDP\_Growth}_t = c_1 + \sum_{i=1}^{p}\big(\alpha_i\,\text{GDP\_Growth}_{t-i} + \beta_i\,\Delta\text{Unemployment}_{t-i}\big) + \varepsilon_{1,t}
+$$
 
-Limitations
+$$
+\Delta\text{Unemployment}_t = c_2 + \sum_{i=1}^{p}\big(\gamma_i\,\text{GDP\_Growth}_{t-i} + \delta_i\,\Delta\text{Unemployment}_{t-i}\big) + \varepsilon_{2,t}
+$$
 
-Repository structure
+Structural shocks are identified via a **Cholesky decomposition** of $\Sigma$ under the baseline ordering (GDP_Growth → Delta_Unemployment, i.e. output shocks are permitted to affect unemployment contemporaneously, but not vice versa). This ordering assumption is stress-tested in the robustness section (§6, reverse ordering).
 
-How to run
+| Component | Description | Order of Integration |
+|---|---|---|
+| $\text{GDP\_Growth}_t$ | 100 × log-difference of real GDP (GDPC1) | I(0) |
+| $\Delta\text{Unemployment}_t$ | First difference of the (quarterly-averaged) unemployment rate (UNRATE) | I(0) |
 
-References
+## 3. Data & Variable Construction
 
-Research question
+**Source:** FRED (Federal Reserve Economic Data), retrieved via the `quantmod` R package.
 
-Do changes in U.S. real economic activity systematically precede changes in unemployment, and how persistent is that relationship?
+**Series:** `GDPC1` (Real Gross Domestic Product, quarterly) and `UNRATE` (Civilian Unemployment Rate, monthly, aggregated to quarterly averages).
 
-The project focuses on a dynamic version of Okun's Law. A static Okun regression summarizes contemporaneous co-movement between output and unemployment. A VAR allows both variables to depend on their own lags and on past values of the other variable.
+**Sample:** 1984Q1–2019Q4 (144 quarterly observations). The sample is deliberately truncated at 2019Q4 to exclude the COVID-19 shock, whose magnitude (unemployment +10pp, GDP −9% in a single quarter) would dominate the covariance structure and distort a linear VAR estimated on 36 years of otherwise moderate fluctuations. The 1984 start post-dates the Volcker disinflation and coincides with the conventional start of the "Great Moderation."
 
-The estimated reduced-form system is:
+**Transformations:**
+- $\text{GDP\_Growth}_t = 100 \times \big(\ln \text{GDP}_t - \ln \text{GDP}_{t-1}\big)$
+- $\Delta\text{Unemployment}_t = \text{UNRATE}_t - \text{UNRATE}_{t-1}$
 
-Y_t = c + A_1 Y_(t-1) + ... + A_p Y_(t-p) + e_t
+Both transformations are the standard stationarity-inducing operations for these series (log GDP and the unemployment rate are both well known to contain a unit root in levels); ADF and KPSS tests on the transformed series (§4, Stage 1) confirm stationarity is achieved.
 
-where
+| Variable | Mean | SD | Min | Max |
+|---|---|---|---|---|
+| GDP_Growth | 0.680 | 0.572 | −2.213 | 1.936 |
+| Delta_Unemployment | −0.034 | 0.269 | −0.667 | 1.400 |
 
-Y_t = [ GDP_Growth_t , Delta_Unemployment_t ]'
+![US GDP Growth and Change in Unemployment](output/01_series.png)
 
-The two variables are treated as jointly endogenous.
+## 4. Methodological Pipeline
 
-For orthogonalized impulse responses, the baseline recursive ordering is:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STAGE 1 │ Unit Root Testing                                     │
+│           ADF (drift) + KPSS (long-lag) on both series           │
+│           → Both series I(0) → No differencing/cointegration     │
+│             analysis required                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 2 │ Lag Order Selection                                   │
+│           VARselect (AIC/HQ/SC/FPE) → SC(n) = 1                  │
+│           Breusch-Godfrey LM test on VAR(1) residuals rejects    │
+│           white noise → lag order increased sequentially until   │
+│           residual autocorrelation clears → VAR(4)                │
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 3 │ Estimation & Diagnostics                               │
+│           VAR(4), const → Breusch-Godfrey, Jarque-Bera, ARCH-LM  │
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 4 │ Stability                                              │
+│           Companion-matrix roots + OLS-CUSUM                     │
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 5 │ Causality                                              │
+│           Bootstrapped Granger causality (both directions) +      │
+│           instantaneous causality test                            │
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 6 │ Dynamic Analysis                                       │
+│           Orthogonalised IRFs (Cholesky) + FEVD, 95% bootstrap CI│
+├─────────────────────────────────────────────────────────────────┤
+│  STAGE 7 │ Robustness                                             │
+│           Reverse Cholesky ordering, pre-GFC subsample,           │
+│           GFC impulse dummies, lag-sensitivity of the headline IRF│
+└─────────────────────────────────────────────────────────────────┘
+```
 
-GDP_Growth  ->  Delta_Unemployment
+**Stage 1 — Unit Root Testing.** The Augmented Dickey-Fuller test (drift, AIC-selected lags) rejects a unit root in GDP_Growth (τ = −5.206, 5% crit. = −2.88) and in Delta_Unemployment (τ = −3.906, 5% crit. = −2.88). The KPSS test at long lags fails to reject stationarity for both series (0.349 and 0.083 respectively, against a 5% critical value of 0.463). GDP_Growth's KPSS statistic is borderline at short lags (0.486 > 0.463 critical value), but this is consistent with well-documented KPSS over-rejection at low lag truncation and is resolved once the long-lag (Schwert-rule) bandwidth is used. Both series are treated as I(0), which is expected given that growth rates and first-differenced rates are the standard stationary transformations of I(1) levels.
 
-This means GDP-growth innovations may affect unemployment within the same quarter under the baseline Cholesky identification. Because that is an identifying assumption rather than a fact established by the data, the reverse ordering is also reported as a robustness check.
+**Stage 2 — Lag Order Selection.** Information criteria disagree: SC/HQ select 1 lag, AIC/FPE select 3. The Breusch-Godfrey LM test (8 lags) on the VAR(1) residuals rejects the null of no serial correlation (p = 0.013), so the parsimonious SC-selected specification is rejected in favour of the shortest lag order that passes the diagnostic. Sequential re-estimation shows the test does not clear at p = 2 or p = 3, and passes at **p = 4** (p = 0.104).
 
-Data and variables
+**Stage 3 — Estimation & Diagnostics.** The final VAR(4) passes the Breusch-Godfrey test but fails multivariate normality (Jarque-Bera) and the multivariate ARCH-LM test for residual heteroskedasticity — see §6 for the implications.
 
-Source: Federal Reserve Economic Data (FRED), downloaded directly in R using quantmod.
+**Stage 4 — Stability.** The largest companion-matrix root has modulus 0.706, well inside the unit circle; the VAR is dynamically stable. The OLS-CUSUM statistic for both equations remains within the 5% confidence bounds throughout the sample, indicating no evidence of parameter instability.
 
-Series
+**Stage 5 — Causality.** A bootstrapped Granger causality test (1,000 replications) is used given the non-normal residuals from Stage 3, which invalidate the asymptotic F-distribution.
 
-FRED code
+**Stage 6 — Dynamic Analysis.** Structural shocks are identified via Cholesky decomposition under the baseline ordering; responses and their 95% bootstrap confidence bands are computed over a 12-quarter horizon.
 
-Frequency in source
+**Stage 7 — Robustness.** The baseline ordering, full-sample window, and specification are stress-tested against three alternatives (see §5).
 
-Use in project
+## 5. Key Results
 
-Real Gross Domestic Product
+### 5.1 Granger and Instantaneous Causality
 
-GDPC1
+| Hypothesis | F-stat | Bootstrap p-value | Verdict |
+|---|---|---|---|
+| GDP_Growth does not Granger-cause Δ Unemployment | 6.164 | 0.023 | **Rejected** |
+| Δ Unemployment does not Granger-cause GDP_Growth | 0.282 | 0.863 | Not rejected |
+| No instantaneous causality (contemporaneous) | χ² = 23.79 | < 0.001 | **Rejected** |
 
-Quarterly
+The causal ordering runs **one way**: GDP growth Granger-causes changes in unemployment, but not the reverse. There is also strong contemporaneous (same-quarter) co-movement, consistent with Okun's Law's traditionally-reported near-instantaneous correlation. This asymmetric, output-leads-unemployment pattern is the paper's central finding.
 
-Converted to quarter-on-quarter log growth
+### 5.2 Impulse Responses
 
-Civilian Unemployment Rate
+A one-standard-deviation positive GDP growth shock produces a **negative, persistent** response in Δ Unemployment: the response bottoms out around quarters 2–4 and the 95% bootstrap band excludes zero over roughly that window, before decaying back toward zero by quarter ~8 (Fig. 2). The reverse experiment — a positive unemployment-change shock — produces a negative response in GDP growth of similar shape and persistence (Fig. 3), which is unsurprising given the strong contemporaneous correlation documented above, but is not supported as a *directional* (Granger) effect once lead-lag ordering is imposed.
 
-UNRATE
+![Response of Unemployment to a GDP Growth Shock](output/03_irf_gdp_to_unemployment.png)
+![Response of GDP Growth to an Unemployment Shock](output/04_irf_unemployment_to_gdp.png)
 
-Monthly
+### 5.3 Forecast Error Variance Decomposition
 
-Aggregated to quarterly mean, then first-differenced
+| Response | Horizon | Own shock | Other shock |
+|---|---|---|---|
+| GDP_Growth | 1 | 100.0% | 0.0% |
+| GDP_Growth | 12 | ~98.7% | ~1.3% |
+| Δ Unemployment | 1 | 79.5% | 20.5% |
+| Δ Unemployment | 12 | ~55.8% | ~44.2% |
 
-Sample: 1984Q1–2019Q4
-Observations: 144 quarters
+GDP growth is almost entirely self-driven at all horizons — unemployment shocks explain a negligible share of its forecast error variance. Δ Unemployment, in contrast, is increasingly explained by GDP growth shocks as the horizon lengthens, rising from ~20% on impact to ~44% at 3 years. This asymmetry mirrors the Granger causality result: growth shocks propagate into unemployment, not the other way around.
 
-The sample ends in 2019Q4 so that the unusually large COVID-19 shock does not dominate the covariance structure of a linear VAR.
+![FEVD](output/05_fevd.png)
 
-Variable construction
+### 5.4 Robustness
 
-GDP_Growth_t = 100 x [ ln(GDP_t) - ln(GDP_(t-1)) ]
+| Specification | BG (serial corr.) p | JB (normality) p | ARCH-LM p |
+|---|---|---|---|
+| Baseline VAR(4), full sample | 0.104 | < 0.001 | < 0.001 |
+| Reverse Cholesky ordering | 0.104 | < 0.001 | < 0.001 |
+| **Pre-GFC subsample (1984Q1–2007Q4)** | **0.295** | **0.307** | **0.400** |
+| GFC impulse dummies (full sample) | 0.030 | 0.341 | 0.254 |
 
-Delta_Unemployment_t = Unemployment_t - Unemployment_(t-1)
+- **Reverse ordering:** identifying shocks with unemployment placed first leaves the sign, rough magnitude, and persistence of the GDP → unemployment response unchanged (Fig. 6), so the headline result is not an artefact of the Cholesky ordering choice.
+- **Pre-GFC subsample:** restricting the sample to 1984Q1–2007Q4 (N = 92) produces a VAR that **passes all three diagnostic tests simultaneously** — the residual non-normality and ARCH effects in the full-sample model are concentrated in the 2008–09 crisis window, not a generic misspecification. The IRF shape is preserved (Fig. 7).
+- **GFC impulse dummies:** adding 2008Q4/2009Q1 dummies to the full sample restores normal, homoskedastic residuals (JB p = 0.341, ARCH p = 0.254) but does **not** fully clear serial correlation (BG p = 0.030), so the dummy-augmented model is reported as a partial, not complete, fix.
+- **Lag sensitivity:** the sign and approximate magnitude of the headline GDP → unemployment impulse response is stable across VAR(1) through VAR(4) (trough in the range −0.08 to −0.10 within the first two quarters), indicating the result is not an artefact of the specific lag order chosen in Stage 2.
 
-GDP_Growth is therefore quarter-on-quarter real GDP log growth in percent.
-Delta_Unemployment is the quarterly change in the unemployment rate in percentage points.
+![Reverse ordering IRF](output/06_irf_reverse_ordering.png)
+![Pre-GFC IRF](output/07_irf_pre_gfc.png)
 
-Descriptive statistics
+## 6. Methodological Caveats & Limitations
 
-Variable
+**6.1 Non-normal, conditionally heteroskedastic residuals in the full sample.** The baseline VAR(4) fails both the Jarque-Bera and ARCH-LM tests. As shown in §5.4, this is driven by the 2008–09 financial crisis: the pre-GFC subsample passes both tests cleanly, and the GFC-dummy model resolves the higher-moment failures without resolving serial correlation. OLS coefficient estimates remain consistent under non-normality, but the reported IRF confidence bands (constructed via a standard residual bootstrap) should be read as approximate rather than exact for the full-sample model. A GARCH-in-VAR or Markov-switching specification would be the natural extension if the crisis period is to be retained and modelled explicitly rather than excluded or dummied out.
 
-Mean
+**6.2 Residual serial correlation is not fully eliminated.** Even at the maximum lag order tested (p = 4, the point at which the Breusch-Godfrey test first fails to reject at 8 lags), the Portmanteau test at longer lag lengths remains marginally significant in some specifications (e.g. crisis-dummy model, p = 0.021 at 16 lags). This suggests either a lag order beyond the tested range (LAG_MAX = 6) or a source of misspecification the linear VAR does not capture — most plausibly the crisis-period nonlinearity discussed above.
 
-SD
+**6.3 Two-variable information set.** A bivariate VAR omits variables long argued to matter for the growth-unemployment nexus — labour force participation, productivity growth, and monetary/fiscal policy indicators in particular. Omitted-variable bias in a VAR context manifests as contamination of both the estimated dynamics and, more importantly, the structural identification: if a third variable drives both series, the two-variable Cholesky ordering used here cannot separate that common driver from genuine bilateral transmission. A three- or four-variable extension (e.g. adding the Federal Funds Rate or labour productivity) is the most direct robustness check against this concern.
 
-Minimum
+**6.4 Identification rests on a recursive (Cholesky) restriction.** The baseline ordering assumes GDP growth shocks can affect unemployment within the same quarter but not vice versa. This is economically defensible (output responds to labour-market slack with a lag, whereas the unemployment rate is measured from a survey taken partway through the quarter and can react faster to output news) but is an assumption, not a test. §5.4 shows the qualitative result survives reversing the ordering, which is reassuring but not equivalent to a fully agnostic identification scheme such as sign restrictions.
 
-Maximum
+**6.5 Sample exclusion of 2020 onward.** Truncating the sample at 2019Q4 avoids the COVID-19 outlier dominating the covariance structure, but it means the model says nothing about whether the estimated Okun relationship held during or after that shock. Extending the sample with either an additional impulse dummy for 2020Q2 or explicit outlier-robust estimation (as used in the companion FRED-based VAR script for INDPRO/CPI/PPI/FEDFUNDS in this repository) is a natural next step.
 
-GDP_Growth
+## 7. How to Run
 
-0.680
+**Requirements**
+- R version ≥ 4.5.0
+- Packages: `quantmod`, `zoo`, `urca`, `vars` (installed automatically if missing)
+- Active internet connection (required to query the FRED API)
 
-0.572
-
--2.213
-
-1.936
-
-Delta_Unemployment
-
--0.034
-
-0.269
-
--0.667
-
-1.400
-
-Time-series plot
-
-
-
-The large 2008–09 movements are visible in both series and later matter for the residual normality and heteroskedasticity diagnostics.
-
-Econometric strategy
-
-1. Stationarity
-
-The variables entering the VAR are tested directly.
-
-Test
-
-GDP_Growth
-
-Delta_Unemployment
-
-Interpretation
-
-ADF statistic
-
--5.206
-
--3.906
-
-Reject unit-root null at 5%
-
-ADF 5% critical value
-
--2.88
-
--2.88
-
-
-
-KPSS, long-lag statistic
-
-0.349
-
-0.083
-
-Fail to reject stationarity at 5%
-
-KPSS 5% critical value
-
-0.463
-
-0.463
-
-
-
-The ADF and long-lag KPSS results therefore support treating both transformed variables as stationary, I(0).
-
-A short-lag KPSS specification for GDP growth is borderline, so stationarity is treated as strongly supported by the combined evidence rather than as something mechanically "proved" by one test.
-
-2. Lag selection
-
-Information criteria do not agree:
-
-Criterion
-
-Preferred lag
-
-Schwarz / BIC
-
-1
-
-Hannan-Quinn
-
-1
-
-AIC
-
-3
-
-FPE
-
-3
-
-The parsimonious VAR(1) leaves residual autocorrelation:
-
-Breusch-Godfrey p-value for VAR(1) = 0.013
-
-The lag order is therefore increased sequentially. VAR(4) is the shortest specification for which the 8-lag Breusch-Godfrey test fails to reject residual serial correlation:
-
-Final lag order = 4
-Breusch-Godfrey p-value = 0.104
-
-This is best viewed as diagnostic respecification rather than a claim that BIC itself selected four lags.
-
-3. Stability
-
-The largest companion-matrix root modulus is:
-
-0.706
-
-All roots lie inside the unit circle, so the final VAR(4) is dynamically stable.
-
-Main results
-
-Granger-causality tests
-
-Bootstrap inference is used for the Granger tests.
-
-Null hypothesis
-
-F statistic
-
-Bootstrap p-value
-
-Result
-
-GDP growth does not Granger-cause change in unemployment
-
-6.164
-
-0.023
-
-Reject
-
-Change in unemployment does not Granger-cause GDP growth
-
-0.282
-
-0.863
-
-Do not reject
-
-There is also strong contemporaneous dependence between the reduced-form innovations:
-
-Instantaneous-causality test: p < 0.001
-Residual innovation correlation: approximately -0.45
-
-Interpretation
-
-The evidence is asymmetric in predictive terms:
-
-Past GDP growth contains statistically significant information for forecasting subsequent changes in unemployment, conditional on the VAR's own lag structure. The reverse predictive relationship is not supported.
-
-This is a Granger-predictive result, not proof that GDP growth is an exogenous structural cause of unemployment.
-
-Impulse-response analysis
-
-Baseline ordering: GDP growth first
-
-A positive orthogonalized GDP-growth innovation produces a negative response in the change in unemployment. The response is strongest in the first few quarters and then gradually decays toward zero.
-
-
-
-Reverse experiment
-
-The response of GDP growth to an unemployment innovation is negative in the orthogonalized system, although the Granger test does not support a lagged predictive effect running from unemployment to GDP growth.
-
-
-
-Identification robustness
-
-Reversing the Cholesky ordering preserves the negative short-run sign of the GDP-growth-shock response of unemployment, but the magnitude changes.
-
-
-
-This is an important qualification: the qualitative short-run relationship is reasonably robust, while exact structural magnitudes remain identification-dependent.
-
-Variance decomposition
-
-Under the baseline Cholesky ordering:
-
-Response
-
-Horizon
-
-Own innovation
-
-Other innovation
-
-GDP_Growth
-
-1
-
-100.0%
-
-0.0%
-
-GDP_Growth
-
-12
-
-98.7%
-
-1.3%
-
-Delta_Unemployment
-
-1
-
-79.5%
-
-20.5%
-
-Delta_Unemployment
-
-12
-
-55.8%
-
-44.2%
-
-
-
-The baseline FEVD suggests that GDP-growth innovations account for a substantial share of unemployment forecast-error variance at longer horizons.
-
-However, this number is sensitive to recursive ordering. Under the reverse ordering, the GDP-growth share of unemployment forecast-error variance at horizon 12 falls substantially. For that reason, the FEVD is interpreted as an identification-dependent decomposition rather than as a structural fact.
-
-Diagnostics and robustness
-
-Baseline VAR(4)
-
-Diagnostic
-
-Result
-
-Interpretation
-
-Breusch-Godfrey LM
-
-p = 0.104
-
-No evidence of remaining serial correlation at the tested horizon
-
-Largest VAR root
-
-0.706
-
-Dynamically stable
-
-Jarque-Bera
-
-p < 0.001
-
-Residual normality rejected
-
-Multivariate ARCH-LM
-
-p < 0.001
-
-Conditional homoskedasticity rejected
-
-OLS-CUSUM
-
-Within critical bands
-
-No formal evidence of coefficient instability
-
-CUSUM stability
-
-
-
-The CUSUM processes remain within the critical boundaries. This does not eliminate all concerns about crisis-period instability, but it provides no formal CUSUM evidence of parameter instability.
-
-Pre-GFC robustness
-
-The model is re-estimated over 1984Q1–2007Q4.
-
-
-
-The negative GDP-growth-shock response of unemployment is preserved. The shorter pre-GFC specification also has substantially cleaner residual diagnostics, suggesting that much of the full-sample non-normality and conditional heteroskedasticity is associated with the Global Financial Crisis period.
-
-Crisis-dummy and lag-sensitivity checks
-
-The full script additionally evaluates:
-
-impulse dummies around the Global Financial Crisis;
-
-alternative VAR lag orders;
-
-reverse recursive ordering;
-
-the pre-GFC subsample.
-
-These checks are used to assess whether the headline result is being driven mechanically by one specific lag choice, one crisis episode, or one Cholesky ordering.
-
-Limitations
-
-The project is intentionally small and transparent, but several limitations matter.
-
-Residual heteroskedasticity and non-normality.
-The full-sample VAR rejects multivariate normality and homoskedasticity. OLS point estimates remain useful under appropriate conditions, but conventional Gaussian inference and standard residual-bootstrap IRF bands should be interpreted cautiously.
-
-Recursive identification.
-Orthogonalized IRFs and FEVD require a Cholesky ordering. Reversing the ordering preserves the qualitative short-run IRF sign but changes the magnitude and materially changes the FEVD. Structural interpretations are therefore deliberately limited.
-
-Bivariate information set.
-The model contains only output growth and unemployment changes. Productivity, labour-force participation, monetary policy, fiscal policy and other common drivers are omitted. The model is therefore best viewed as a compact reduced-form study of dynamic Okun-type co-movement.
-
-Sample choice.
-The sample excludes 2020 onward. This avoids allowing COVID-19 to dominate estimation but means the model is not intended to describe the pandemic or post-pandemic labour market.
-
-Granger causality is not structural causality.
-A statistically significant Granger test means one variable contains incremental predictive information for another conditional on the model. It does not by itself establish an exogenous causal mechanism.
-
-Repository structure
-
-US-OKUNS-LAW-VAR/
-|
-|-- README.md
-|-- Okun_Law_Bivariate_VAR.R
-|-- LICENSE
-|
-`-- output/
-    |-- 01_series.png
-    |-- 02_cusum.png
-    |-- 03_irf_gdp_to_unemployment.png
-    |-- 04_irf_unemployment_to_gdp.png
-    |-- 05_fevd.png
-    |-- 06_irf_reverse_ordering.png
-    `-- 07_irf_pre_gfc.png
-
-Important: the image files must actually exist inside the repository at these exact paths. GitHub paths are case-sensitive.
-
-How to run
-
-Requirements
-
-R 4.5 or later
-
-Internet connection for FRED downloads
-
-Packages:
-
-quantmod
-
-zoo
-
-urca
-
-vars
-
-Run
-
-Clone or download the repository, set the repository as the working directory, and run:
-
+**Execution**
+```r
 source("Okun_Law_Bivariate_VAR.R")
+```
+The script will:
+1. Fetch `GDPC1` and `UNRATE` from FRED and construct the bivariate series
+2. Run unit root tests, lag selection, and estimate the VAR(4)
+3. Run the full diagnostic battery (serial correlation, normality, ARCH, stability)
+4. Compute Granger causality, IRFs (1,000 bootstrap replications), and FEVD
+5. Run all robustness checks (reverse ordering, pre-GFC subsample, GFC dummies, lag sensitivity)
+6. Save all tables (`.csv`) and figures (`.png`) to the `output/` folder
 
-The script downloads the FRED data, constructs the quarterly variables, performs the stationarity and diagnostic tests, estimates the VAR, produces the causality/IRF/FEVD analysis, and runs the robustness checks.
+**Runtime note:** the bootstrap IRF and Granger causality routines (1,000 replications each) are the slowest steps; reduce `IRF_RUNS` at the top of the script for a faster test run.
 
-Reproducibility notes
+## 8. References
 
-FRED macroeconomic series can be revised over time. Exact numerical results may therefore change slightly when the script is rerun with later data vintages.
+Breusch, T.S. (1978). Testing for autocorrelation in dynamic linear models. *Australian Economic Papers*, 17(31), 334–355.
 
-Random seeds are set before bootstrap procedures to improve reproducibility.
+Dickey, D.A., & Fuller, W.A. (1979). Distribution of the estimators for autoregressive time series with a unit root. *Journal of the American Statistical Association*, 74(366a), 427–431.
 
-References
+Engle, R.F. (1982). Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation. *Econometrica*, 50(4), 987–1007.
 
-Breusch, T. S. (1978). Testing for autocorrelation in dynamic linear models. Australian Economic Papers, 17(31), 334–355.
+Granger, C.W.J. (1969). Investigating causal relations by econometric models and cross-spectral methods. *Econometrica*, 37(3), 424–438.
 
-Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. Journal of the American Statistical Association, 74(366a), 427–431.
+Kwiatkowski, D., Phillips, P.C.B., Schmidt, P., & Shin, Y. (1992). Testing the null hypothesis of stationarity against the alternative of a unit root. *Journal of Econometrics*, 54(1–3), 159–178.
 
-Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. Econometrica, 37(3), 424–438.
+Lütkepohl, H. (2005). *New Introduction to Multiple Time Series Analysis*. Springer.
 
-Kwiatkowski, D., Phillips, P. C. B., Schmidt, P., & Shin, Y. (1992). Testing the null hypothesis of stationarity against the alternative of a unit root. Journal of Econometrics, 54(1–3), 159–178.
+Okun, A.M. (1962). Potential GNP: its measurement and significance. *Proceedings of the Business and Economic Statistics Section, American Statistical Association*, 98–104.
 
-Lütkepohl, H. (2005). New Introduction to Multiple Time Series Analysis. Springer.
+Sims, C.A. (1980). Macroeconomics and reality. *Econometrica*, 48(1), 1–48.
 
-Okun, A. M. (1962). Potential GNP: Its Measurement and Significance. Proceedings of the Business and Economic Statistics Section, American Statistical Association, 98–104.
-
-Sims, C. A. (1980). Macroeconomics and reality. Econometrica, 48(1), 1–48.
-
-Author
-
-Sameer Chawla
-MSc Economics
-Gokhale Institute of Politics and Economics (GIPE), Pune
-Expected graduation: 2027
-
-This repository is an academic econometrics project. Its empirical results should be interpreted as reduced-form evidence, not as a definitive structural causal model of the U.S. labour market.
+---
+MSc Economics · Gokhale Institute of Politics and Economics · Pune, India
