@@ -33,72 +33,34 @@ This project instead models the joint dynamics of **GDP growth** and the **chang
 
 ## 2. Research Question & Empirical Strategy
 
-### Research Question
+**Empirical Model — Reduced-Form VAR(p)**
 
-**Do changes in U.S. real GDP growth systematically precede changes in unemployment, and how persistent is this relationship?**
+$$
+Y_t = c + \sum_{i=1}^{p} A_i \, Y_{t-i} + \varepsilon_t, \qquad \varepsilon_t \sim \text{WN}(0, \Sigma)
+$$
 
-The analysis uses a **bivariate Vector Autoregression (VAR)** in which both GDP growth and the change in unemployment are treated as endogenous variables.
+where the endogenous vector is
 
-### Empirical Model
+$$
+Y_t = \begin{bmatrix} \text{GDP\_Growth}_t \\ \Delta\text{Unemployment}_t \end{bmatrix}
+$$
 
-The reduced-form VAR(p) can be written as:
+$c$ is a constant vector, $A_i$ are $2\times2$ coefficient matrices for lag $i$, and $\Sigma$ is the residual covariance matrix. Written out for a lag order $p$, the two estimating equations are:
 
-```text
-Y_t = c + A1 Y_(t-1) + A2 Y_(t-2) + ... + Ap Y_(t-p) + e_t
-```
+$$
+\text{GDP\_Growth}_t = c_1 + \sum_{i=1}^{p}\big(\alpha_i\,\text{GDP\_Growth}_{t-i} + \beta_i\,\Delta\text{Unemployment}_{t-i}\big) + \varepsilon_{1,t}
+$$
 
-where:
+$$
+\Delta\text{Unemployment}_t = c_2 + \sum_{i=1}^{p}\big(\gamma_i\,\text{GDP\_Growth}_{t-i} + \delta_i\,\Delta\text{Unemployment}_{t-i}\big) + \varepsilon_{2,t}
+$$
 
-```text
-Y_t = [ GDP_Growth_t , Delta_Unemployment_t ]'
-```
+Structural shocks are identified via a **Cholesky decomposition** of $\Sigma$ under the baseline ordering (GDP_Growth → Delta_Unemployment, i.e. output shocks are permitted to affect unemployment contemporaneously, but not vice versa). This ordering assumption is stress-tested in the robustness section (§6, reverse ordering).
 
-The two estimating equations are:
-
-```text
-GDP_Growth_t =
-    c1
-    + Σ ai * GDP_Growth_(t-i)
-    + Σ bi * Delta_Unemployment_(t-i)
-    + e1_t
-```
-
-and
-
-```text
-Delta_Unemployment_t =
-    c2
-    + Σ gi * GDP_Growth_(t-i)
-    + Σ di * Delta_Unemployment_(t-i)
-    + e2_t
-```
-
-for `i = 1, ..., p`.
-
-`c1` and `c2` are constants, while the coefficients capture the dynamic effects of lagged GDP growth and lagged changes in unemployment.
-
-### Identification
-
-Orthogonalised impulse-response functions are obtained using a **Cholesky decomposition**.
-
-The baseline ordering is:
-
-```text
-GDP_Growth  ->  Delta_Unemployment
-```
-
-This assumes that a GDP-growth innovation may affect unemployment within the same quarter, while an unemployment innovation affects GDP growth only with a lag.
-
-This is an **identifying assumption rather than an empirical fact**, so the model is also estimated under the reverse ordering as a robustness check.
-
-### Variables
-
-| Variable | Construction | Order of Integration |
-|---|---|---:|
-| `GDP_Growth` | 100 × quarterly log-difference of real GDP (`GDPC1`) | I(0) |
-| `Delta_Unemployment` | First difference of the quarterly-average unemployment rate (`UNRATE`) | I(0) |
-
-ADF and KPSS tests provide evidence that both transformed variables are stationary, allowing estimation of a conventional stationary VAR without a VECM.
+| Component | Description | Order of Integration |
+|---|---|---|
+| $\text{GDP\_Growth}_t$ | 100 × log-difference of real GDP (GDPC1) | I(0) |
+| $\Delta\text{Unemployment}_t$ | First difference of the (quarterly-averaged) unemployment rate (UNRATE) | I(0) |
 
 ## 3. Data & Variable Construction
 
