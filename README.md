@@ -1,278 +1,262 @@
-# Output Growth and Unemployment Dynamics in the US
+# Output Growth and Unemployment Dynamics in the United States
 
-### A bivariate VAR analysis of Okun's Law, 1984Q1–2019Q4
+**A bivariate vector autoregression assessment of Okun's Law, 1984Q1–2019Q4**
 
-![R](https://img.shields.io/badge/R-4.5.0-276DC3?logo=r&logoColor=white)
-![Data](https://img.shields.io/badge/data-FRED-1f6feb)
-![Sample](https://img.shields.io/badge/sample-1984Q1--2019Q4-informational)
-![Model](https://img.shields.io/badge/model-VAR(3)-success)
+**Author:** Sameer Chawla  
+**Programme:** MSc Economics, Gokhale Institute of Politics and Economics (GIPE), Pune  
+**Methods:** Difference-form Okun regression, VAR, Granger predictability, impulse-response functions (IRFs), forecast-error variance decomposition (FEVD)  
+**Code:** [`Okun_Law_Bivariate_VAR.R`](Okun_Law_Bivariate_VAR.R) · **Data:** [FRED GDPC1](https://fred.stlouisfed.org/series/GDPC1) and [FRED UNRATE](https://fred.stlouisfed.org/series/UNRATE)
 
-**Author:** Sameer Chawla · MSc Economics, Gokhale Institute of Politics and Economics, Pune
-**Type:** Applied time-series econometrics · reproducible R project
+> **Headline result.** Quarterly real GDP growth is negatively associated with quarterly changes in the US unemployment rate over 1984–2019. In the **AIC/FPE-selected VAR(3)**, lagged GDP growth contains information useful for predicting changes in unemployment, whereas lagged unemployment changes do not show corresponding predictive content for GDP growth. An orthogonalized GDP-growth innovation is associated with a negative short-run response in unemployment changes. **These are conditional predictive and recursively identified results—not proof of structural causation.** The baseline residuals exhibit serial correlation, non-normality and ARCH effects; the FEVD is sensitive to the Cholesky ordering.
 
-<p align="center">
-  <img src="output/03_irf_gdp_to_unemployment.png" width="48%" alt="Impulse response of unemployment change to a GDP growth shock">
-  <img src="output/08_okun_scatter.png" width="48%" alt="Difference-form Okun scatterplot with OLS line">
-</p>
+## At a glance
 
-> **Main finding.** Faster US GDP growth goes with a *smaller* change in the unemployment rate, and lagged GDP growth helps predict unemployment changes while the reverse does not. A one-standard-deviation GDP shock lowers the unemployment-rate change by about **0.08 pp on impact and 0.10 pp after one quarter**, fading over roughly a year. The shape of the response is stable across lag orders, but the **variance decomposition depends on the Cholesky ordering**, and residual diagnostics reveal real limitations (see [Section 6](#6-model-diagnostics-and-limitations)).
-
----
-
-## Results at a glance
-
-| Question | Result |
+| Analysis | Main result |
 |---|---|
-| Static Okun relation | $\widehat{\Delta u_t} = 0.1517 - 0.2734\,g_t$; HAC $t = -3.97$; $R^2 = 0.338$ |
-| Does GDP growth Granger-predict Δ unemployment? | **Yes**: F = 8.07, bootstrap p = 0.022 |
-| Does Δ unemployment Granger-predict GDP growth? | **No**: F = 0.39, bootstrap p = 0.749 |
-| Peak IRF response (GDP shock → Δ unemployment) | −0.100 pp at horizon 1 (95% CI −0.135 to −0.060) |
-| 12-quarter FEVD share of GDP shocks in Δ unemployment | 44.9% (GDP first) vs **12.6%** (unemployment first) |
-| Model stability | Stable (largest companion eigenvalue modulus 0.808) |
-| Residual diagnostics | Serial correlation, non-normality and ARCH effects detected |
-
-## Contents
-
-1. [Research question and scope](#1-research-question-and-scope)
-2. [Data and transformations](#2-data-and-transformations)
-3. [Econometric specifications](#3-econometric-specifications)
-4. [Stationarity and lag selection](#4-stationarity-and-lag-selection)
-5. [Empirical findings](#5-empirical-findings)
-6. [Model diagnostics and limitations](#6-model-diagnostics-and-limitations)
-7. [Robustness and identification sensitivity](#7-robustness-and-identification-sensitivity)
-8. [Figures](#8-figures)
-9. [Reproducibility](#9-reproducibility)
-10. [References](#10-references)
-
----
+| Sample | 1984Q1–2019Q4; 144 quarters before VAR lagging |
+| Static difference-form Okun slope | **−0.2734**; Newey–West HAC SE **0.0688**; p = **0.000112** |
+| Information criteria | AIC/FPE choose **3 lags**; HQ/BIC choose **1 lag** |
+| Reported baseline | **Bivariate VAR(3)** with intercept; **141** effective observations |
+| GDP growth → unemployment changes | Wild-bootstrap Granger **F = 8.071**, p = **0.0224** (4,999 runs) |
+| Unemployment changes → GDP growth | Wild-bootstrap Granger **F = 0.385**, p = **0.7491** (4,999 runs) |
+| Unemployment-change IRF to GDP innovation | **−0.1004 pp** after one quarter; pointwise bootstrap CI **[−0.1346, −0.0597]** |
+| GDP contribution to 12-quarter unemployment-change FEVD | **44.86%** (GDP-first) vs **12.56%** (unemployment-first) |
+| Dynamic stability | Maximum companion-eigenvalue modulus **0.8075** (below one) |
+| Critical model limitation | VAR(3) residual BG p = **0.0443**, JB p ≈ **1.33 × 10⁻¹⁵**, ARCH-LM p ≈ **2.15 × 10⁻⁵** |
 
 ## 1. Research question and scope
 
-**Question:** Do lagged changes in US real output growth help predict unemployment-rate changes, and how do the two variables respond dynamically to identified innovations in a bivariate VAR?
+**Research question:** Do past values of real GDP growth improve forecasts of changes in the unemployment rate, beyond past unemployment changes, and how do these variables respond over time to recursively orthogonalized innovations?
 
-The project estimates the difference-form Okun relationship, then a reduced-form VAR with both variables endogenous. The contribution is **empirical and pedagogical**: it contrasts a static benchmark with dynamic predictive tests, inspects residual adequacy, and measures sensitivity to lag length, sample and recursive identification. It does not claim a new estimator or a newly discovered causal mechanism.
+The project combines a conventional difference-form Okun regression with a reduced-form bivariate VAR. It evaluates contemporaneous association, lagged predictive information and dynamic responses. Its contribution is a **transparent applied comparison**, including lag-order choice, residual diagnostics, sample sensitivity and identification sensitivity; it does not claim to discover a new form of Okun's Law or identify exogenous policy shocks.
 
-Two interpretive cautions apply throughout:
+The analysis ends in 2019Q4 to exclude the extraordinary COVID-19 observations. This is a sample-design decision, **not evidence of a break in the relationship during 2020**. Likewise, beginning in 1984Q1 narrows the study to an era beginning around the US Great Moderation; it does not imply a formally established break in 1984.
 
-- A Granger-causality rejection is a **conditional predictive** result, not proof of an exogenous causal effect.
-- Cholesky-orthogonalized innovations are **identified by assumption**, not uniquely recovered structural shocks.
+## 2. Data and variable construction
 
-## 2. Data and transformations
+Both source series are seasonally adjusted and obtained from Federal Reserve Economic Data (FRED):
 
-Source: [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/).
+| Variable | FRED code | Source frequency | Construction | Interpretation |
+|---|---|---|---|---|
+| `GDP_Growth` | [`GDPC1`](https://fred.stlouisfed.org/series/GDPC1) | Quarterly | `100 * diff(log(GDPC1))` | Approximate **quarter-on-quarter percentage** growth; **not annualized** |
+| `Delta_Unemployment` | [`UNRATE`](https://fred.stlouisfed.org/series/UNRATE) | Monthly | Arithmetic quarterly mean of three monthly unemployment rates, followed by first difference | Quarterly change in the unemployment rate (**percentage points**) |
 
-| Series | FRED code | Native frequency | Treatment |
-|---|---|---|---|
-| Real GDP | [`GDPC1`](https://fred.stlouisfed.org/series/GDPC1) | Quarterly, seasonally adjusted | 100 × quarterly log difference |
-| Civilian unemployment rate | [`UNRATE`](https://fred.stlouisfed.org/series/UNRATE) | Monthly, seasonally adjusted | Average the three monthly values per quarter, then first-difference |
-
-With $Q_t$ as quarterly real GDP and $u_t$ as the quarterly average unemployment rate (percent):
+With real GDP \(Q_t\) and the quarterly mean unemployment rate \(u_t\),
 
 $$
-g_t = 100\left[\ln Q_t - \ln Q_{t-1}\right], \qquad \Delta u_t = u_t - u_{t-1}.
+g_t=100\bigl[\ln Q_t-\ln Q_{t-1}\bigr],
+\qquad \Delta u_t=u_t-u_{t-1}.
 $$
 
-**Units.** $g_t$ is approximately percentage growth *per quarter* (not annualized). $\Delta u_t$ is in **percentage points**.
+The script downloads data beginning before the estimation window; **1983Q4** is required to calculate the first 1984Q1 differences. There are **144 transformed quarterly observations** from 1984Q1–2019Q4. The VAR(3) has **141** effective observations after lagging.
 
-**Sample.** 144 observations, 1984Q1–2019Q4 (the transformations need 1983Q4 values). A VAR(3) uses **141 effective observations** after losing three lags. The sample starts near the beginning of the Great Moderation and ends before COVID-19; the endpoint is a scope choice, not a claim that the relationship breaks in 2020. FRED data are revised, so re-downloading later may change results slightly.
+| Statistic | GDP growth (%) | Change in unemployment (pp) |
+|---|---:|---:|
+| Mean | 0.6801 | −0.0343 |
+| Standard deviation | 0.5723 | 0.2691 |
+| Minimum | −2.2133 | −0.6667 |
+| Maximum | 1.9359 | 1.4000 |
 
-| Variable | Mean | SD | Min | Max |
-|---|---:|---:|---:|---:|
-| GDP growth (%) | 0.6801 | 0.5723 | −2.2133 | 1.9359 |
-| Change in unemployment (pp) | −0.0343 | 0.2691 | −0.6667 | 1.4000 |
+The contemporaneous Pearson correlation is **−0.5814**. Correlation is descriptive, not evidence of structural causation.
 
-The sample correlation is **−0.5814**, which describes association and does not establish causation.
+![Quarterly GDP growth and unemployment changes](output/01_series.png)
 
-![Quarterly GDP growth and unemployment-rate changes](output/01_series.png)
+*Figure 1. Quarterly US real GDP growth and change in the unemployment rate, 1984Q1–2019Q4. The pronounced 2008–09 movements motivate, but do not by themselves validate, the crisis sensitivity checks.*
 
-## 3. Econometric specifications
+## 3. Econometric specification
 
 ### Static difference-form Okun benchmark
 
 $$
-\Delta u_t = \alpha + \beta\, g_t + e_t
+\Delta u_t=\alpha+\beta g_t+e_t,
 $$
 
-Estimated by OLS with **Newey–West HAC standard errors** (4 lags, no prewhitening). This is a contemporaneous benchmark, not a structural equation.
+estimated by OLS. For statistical inference, standard errors are Newey–West HAC with **four lags, no prewhitening**, and small-sample adjustment. This is an unconditional contemporaneous linear projection, not a structural causal equation.
 
 ### Reduced-form VAR
 
 $$
-\mathbf{y}_t = \mathbf{c} + \sum_{i=1}^{p} A_i \mathbf{y}_{t-i} + \boldsymbol{\varepsilon}_t,
+\mathbf y_t=\mathbf c+\sum_{j=1}^{p}A_j\mathbf y_{t-j}+\boldsymbol\varepsilon_t,
 \qquad
-\mathbf{y}_t = \begin{bmatrix} g_t \\ \Delta u_t \end{bmatrix},
+\mathbf y_t=\begin{bmatrix}g_t\\Delta u_t\end{bmatrix},
 \qquad
-E(\boldsymbol{\varepsilon}_t \boldsymbol{\varepsilon}_t') = \Sigma
+E(\boldsymbol\varepsilon_t\boldsymbol\varepsilon_t')=\Sigma.
 $$
 
-The main specification is **VAR(3) with an intercept**, estimated equation by equation with OLS. VAR(1) and VAR(4) serve as lag-sensitivity comparisons. Stability is checked with the eigenvalues of the companion matrix.
+Each equation includes lags of **both** endogenous variables and an intercept. The script estimates the **full-sample VAR(3)** by OLS. The lag-order and specification trade-offs below are central to the interpretation.
 
-**Identification.** For orthogonalized IRFs and FEVD the baseline ordering is **GDP growth first, Δ unemployment second**. The Cholesky factor of $\Sigma$ then imposes that the second innovation has no contemporaneous effect on GDP growth. This restriction does not follow from Granger causality and does not make the first innovation a genuinely exogenous output shock.
+### Recursive orthogonalization
 
-## 4. Stationarity and lag selection
+IRFs and FEVD use the Cholesky factorization \(\Sigma=PP'\). In the baseline ordering, `GDP_Growth` comes before `Delta_Unemployment`. This normalization allows the first recursively identified innovation to affect both variables contemporaneously but imposes a **zero on-impact GDP response to the second innovation**. Reversing the variable ordering imposes a different zero restriction and defines **different innovations**. Such restrictions are identification assumptions, not implications of Granger causality.
 
-### Unit-root and stationarity tests
+## 4. Stationarity tests and lag selection
 
-ADF uses an intercept with AIC-selected lags (max 8). PP uses a constant with short and long bandwidths. KPSS takes level stationarity as the null and uses both bandwidths.
+### ADF, Phillips–Perron and KPSS
 
-| Test | GDP growth | Δ unemployment | 5% critical value |
+ADF: drift specification, AIC selection from up to eight augmentation lags. PP: constant specification, `Z-tau`, short and long bandwidths. KPSS: level-stationarity null, short and long bandwidths.
+
+| Test statistic | GDP growth | Δ unemployment | 5% critical value |
 |---|---:|---:|---:|
 | ADF | −5.1624 | −3.5448 | −2.8800 |
-| PP, short bandwidth | −8.2749 | −5.3958 | −2.8817 |
-| PP, long bandwidth | −8.6524 | −5.4091 | −2.8817 |
-| KPSS, short bandwidth | **0.4861** | 0.1134 | 0.4630 |
-| KPSS, long bandwidth | 0.3486 | 0.0827 | 0.4630 |
+| Phillips–Perron, short | −8.2749 | −5.3958 | −2.8817 |
+| Phillips–Perron, long | −8.6524 | −5.4091 | −2.8817 |
+| KPSS, short | **0.4861** | 0.1134 | 0.4630 |
+| KPSS, long | 0.3486 | 0.0827 | 0.4630 |
 
-ADF and both PP versions reject a unit root for both variables. Long-bandwidth KPSS does not reject stationarity for either. **Short-bandwidth KPSS does reject stationarity for GDP growth**, a discrepancy reported rather than hidden. Overall the tests support treating both transformed series as stationary, with some bandwidth sensitivity for GDP growth.
+ADF and both PP bandwidth choices reject their **unit-root null** for both transformed variables at 5%. Long-bandwidth KPSS **fails to reject level stationarity** in both series. **Short-bandwidth KPSS rejects stationarity for GDP growth** (0.4861 > 0.4630). Therefore, evidence broadly supports estimating a VAR in the transformed series, **with a genuine KPSS bandwidth sensitivity**. These results do **not** establish the exact integration order of the untransformed level series.
 
-### Lag selection is a genuine trade-off
+### Lag-order choice
 
-| Criterion | Selected lag |
+`vars::VARselect` compares lags 1–6 on a common effective sample:
+
+| Information criterion | Selected lag |
 |---|---:|
-| AIC | 3 |
-| FPE | 3 |
-| HQ | 1 |
-| SC/BIC | 1 |
+| Akaike (AIC) | **3** |
+| Final prediction error (FPE) | **3** |
+| Hannan–Quinn (HQ) | 1 |
+| Schwarz / BIC | 1 |
 
-VAR(3) follows AIC/FPE but is **not fully adequate on residual diagnostics**: the 8-lag Breusch–Godfrey test rejects no serial correlation at 5% (p = 0.0443). The full-sample VAR(4) gives p = 0.1036, which is not proof of zero residual dependence. Because models have slightly different usable samples, common-sample comparisons align estimation to **138 quarters**.
+The code designates **VAR(3)** as its *information-criterion baseline*. This is **not** a claim that VAR(3) passes every diagnostic. Its full-sample 8-lag Breusch–Godfrey test rejects the null of no residual serial correlation at the 5% level (p = **0.0443**). VAR(4) does **not** reject in its full-sample counterpart (p = **0.1036**), but failure to reject does not prove white-noise errors. These models have different usable full-sample lengths (141 and 140), so the script also performs comparisons on a **common effective 138-quarter sample**. VAR(4) is an important competing specification.
 
-> VAR(3) is best described as the **information-criterion baseline**, not a uniquely validated data-generating model. VAR(4) is a substantive competitor.
+## 5. Empirical results
 
-## 5. Empirical findings
-
-### 5.1 Static Okun regression
+### 5.1 Conventional Okun regression
 
 $$
-\widehat{\Delta u_t} = 0.1517 - 0.2734\, g_t
+\widehat{\Delta u_t}=0.1517-0.2734g_t.
 $$
 
-| Statistic | Estimate |
+| Statistic | Reported result |
 |---|---:|
-| GDP coefficient | −0.27339 |
-| Newey–West HAC SE | 0.06879 |
+| GDP-growth slope | −0.27339 |
+| Newey–West HAC standard error | 0.06879 |
 | HAC t statistic | −3.9741 |
 | HAC p value | 0.000112 |
-| Approx. 95% HAC interval | [−0.4082, −0.1386] |
-| OLS $R^2$ | 0.3380 |
+| Approximate 95% HAC confidence interval | [−0.4082, −0.1386] |
+| OLS \(R^2\) | 0.3380 |
 
-One extra percentage point of quarterly GDP growth is associated with a **0.273 pp smaller** quarterly change in unemployment, on average. This is an association, not the effect of an exogenous output intervention.
+An additional percentage point of **quarterly** real GDP growth is associated with a **0.273-percentage-point smaller quarterly change** in unemployment, on average. The coefficient is not the impact of a policy-induced output intervention.
 
-![Static Okun scatterplot](output/08_okun_scatter.png)
+![Difference-form Okun regression](output/08_okun_scatter.png)
 
-### 5.2 VAR(3) Granger predictability
+*Figure 2. Scatterplot of quarterly GDP growth and unemployment-rate changes. The fitted line is OLS; inference in the table uses Newey–West HAC standard errors.*
 
-Computed on the full-sample VAR(3) with `vars::causality(..., boot = TRUE, boot.runs = 4999)`.
+### 5.2 Granger predictability
 
-| Null hypothesis | F-statistic | Wild-bootstrap p | Decision (5%) |
+Full-sample VAR(3), `vars::causality(..., boot = TRUE, boot.runs = 4999)`:
+
+| Null hypothesis | F | Wild-bootstrap p | Decision at 5% |
 |---|---:|---:|---|
-| Lagged GDP growth does not Granger-predict Δ unemployment | 8.0710 | **0.0224** | Reject |
-| Lagged Δ unemployment does not Granger-predict GDP growth | 0.3852 | **0.7491** | Do not reject |
+| Lagged GDP growth does not Granger-predict \(\Delta u_t\) | 8.0710 | **0.0224** | Reject |
+| Lagged \(\Delta u_t\) does not Granger-predict GDP growth | 0.3852 | **0.7491** | Do not reject |
 
-The evidence points to asymmetric predictive content **given these variables, this lag structure and this sample**. It does not rule out economic feedback or establish structural causation. Classical F and HC1 joint Wald tests are included in the script as additional checks; HC1 addresses heteroskedasticity but not arbitrary serial dependence.
+The asymmetry concerns **predictive information conditional on these two observed variables, this lag order and this historical sample**. It does **not** prove that an independently manipulable GDP shock causes unemployment to change or rule out broader economic feedback. The script also prints classical F tests and HC1 Wald tests; the latter allow for certain forms of heteroskedasticity but are **not generally robust to remaining serial correlation**.
 
-### 5.3 VAR(3) impulse responses
+### 5.3 Orthogonalized impulse responses
 
-Response of Δ unemployment to a positive **one-standard-deviation Cholesky-orthogonalized GDP-growth innovation**:
+A positive **one-standard-deviation GDP-growth Cholesky innovation** yields the following response of the **change** in unemployment (percentage points). Intervals are *pointwise 95% residual-bootstrap percentiles* based on **1,999 replications**:
 
-| Horizon (quarters; 0 = impact) | Response (pp) | 95% bootstrap interval (pp) |
+| Horizon (quarters; 0 = impact) | Point response (pp) | 95% bootstrap interval (pp) |
 |---|---:|---|
 | 0 | −0.0769 | [−0.1075, −0.0402] |
-| 1 | −0.1004 | [−0.1346, −0.0597] |
+| 1 | **−0.1004** | **[−0.1346, −0.0597]** |
 | 2 | −0.0979 | [−0.1340, −0.0538] |
 | 3 | −0.0455 | [−0.0806, −0.0023] |
 | 4 | −0.0476 | [−0.0799, −0.0074] |
 | 5 | −0.0318 | [−0.0613, 0.0044] |
 | 12 | −0.0068 | [−0.0210, 0.0010] |
 
-Intervals come from **1,999 residual-bootstrap runs**. They exclude zero **pointwise** at horizons 0–4 and include zero from horizon 5 onward. They are not simultaneous bands, and their coverage may be unreliable given the ARCH effects and residual dependence found in Section 6. Responses are in **changes** in unemployment, not its level.
+The intervals exclude zero **pointwise at horizons 0–4**; from horizon 5 onward, zero lies inside the reported bands. A negative response of \(\Delta u_t\) is **not the same thing as a −0.10 percentage-point level response of unemployment**. The estimated impulse responses and the bootstrap bands are conditional on the recursively identified innovation and model assumptions.
 
-![VAR(3) impulse response](output/03_irf_gdp_to_unemployment.png)
+![GDP innovation to unemployment-change IRF](output/03_irf_gdp_to_unemployment.png)
 
-### 5.4 Forecast error variance decomposition (GDP-first ordering)
+*Figure 3. Baseline VAR(3) orthogonalized response to a GDP-growth innovation. Pointwise 95% bootstrap bands.*
 
-Share of **Δ unemployment** forecast-error variance:
+### 5.4 Forecast-error variance decomposition
 
-| Horizon | GDP innovation | Unemployment innovation |
+FEVD attributes **forecast-error variance**, not realised movements. With GDP growth ordered first:
+
+| Forecast horizon | GDP shock contribution to \(\Delta u\) variance | Own innovation contribution |
 |---|---:|---:|
 | 1 quarter | 19.32% | 80.68% |
 | 3 quarters | 44.33% | 55.67% |
 | 12 quarters | **44.86%** | **55.14%** |
 
-For GDP growth itself, about **98.63%** of the 12-quarter forecast-error variance is its own innovation and **1.37%** comes from unemployment. These are shares of *forecast uncertainty*, not the percentage of realized unemployment changes caused by GDP.
+At 12 quarters, **98.63%** of the forecast-error variance of **GDP growth** is attributed to its own innovation, and **1.37%** to the recursively identified unemployment-change innovation. These values are conditional on the ordering and the estimated VAR(3).
 
-## 6. Model diagnostics and limitations
+![VAR(3) forecast-error variance decomposition](output/05_fevd.png)
 
-Full-sample VAR(3):
+*Figure 4. Twelve-quarter VAR(3) FEVD shown as 100% stacked shares. The legend is placed outside the bars; bars sum to 100% at each horizon.*
 
-| Diagnostic | Null hypothesis | Result | Reading |
+## 6. Residual diagnostics and model limitations
+
+| Diagnostic | Null hypothesis | Full-sample VAR(3) result | Conclusion at 5% |
 |---|---|---|---|
-| Breusch–Godfrey (8 lags) | No serial correlation | χ² = 46.791, p = **0.0443** | Rejected at 5% |
-| Multivariate Jarque–Bera | Normal residuals | χ² = 75.751, p = **1.33 × 10⁻¹⁵** | Rejected |
-| Multivariate ARCH-LM (2 lags) | No ARCH effects | χ² = 53.560, p = **2.15 × 10⁻⁵** | Rejected |
-| Companion stability | All moduli < 1 | Max modulus **0.8075** | Stable |
+| Breusch–Godfrey LM (8 lags) | No residual serial correlation | χ² = 46.791, p = **0.04427** | Reject |
+| Multivariate Jarque–Bera | Normal innovations | χ² = 75.751, p = **1.33 × 10⁻¹⁵** | Reject |
+| Multivariate ARCH-LM (2 lags) | No ARCH | χ² = 53.560, p = **2.15 × 10⁻⁵** | Reject |
+| Companion-matrix roots | All moduli less than one | Maximum = **0.8075** | Dynamically stable |
 
-OLS-CUSUM paths stay inside their critical bounds (Figure A1). That is a conditional stability check, not proof of no breaks of any kind, and **dynamic stability is not the same as residual adequacy**.
+The OLS-CUSUM paths in the supplementary figure remain inside their displayed boundaries. This is a limited parameter-stability check, **not proof that all types of structural change are absent**. Likewise, a stable companion matrix does not imply white-noise, Gaussian or homoskedastic residuals.
 
-The serial correlation, non-normality and ARCH results are substantive weaknesses. In particular, **the residual-bootstrap IRF intervals should be read with caution**. A more demanding study could use inference robust to conditional heteroskedasticity and remaining serial dependence, revisit lag length, and widen the information set.
+**Inference caveats.** The reported residual serial correlation and ARCH effects are substantial diagnostic failures. HC1 Wald tests account for certain forms of conditional heteroskedasticity but do not automatically handle serial dependence. The wild-bootstrap Granger results are useful additional evidence, not a remedy for a misspecified conditional mean. Standard residual-bootstrap **IRF confidence bands may have inaccurate coverage** in the presence of time-varying volatility and/or misspecified dynamics. All inferential claims therefore remain qualified by these diagnostics. OLS consistency additionally requires appropriate conditional mean and moment conditions; normality is not itself a requirement for OLS consistency.
 
-## 7. Robustness and identification sensitivity
+A richer analysis could assess additional lags, conditionally heteroskedastic errors, alternative robust dynamic inference and omitted macroeconomic variables, but such extensions are **outside this bivariate assignment's scope**.
 
-**Lag order.** VAR(1), VAR(3) and VAR(4) are aligned to a common 138-quarter sample. All three give negative initial responses of broadly similar size; persistence and pointwise interval exclusions differ. Full-sample and common-sample diagnostic p-values must not be mixed.
+## 7. Sensitivity checks
 
-![Lag-order sensitivity](output/09_lag_sensitivity_irf.png)
+### Lag specification
 
-**Reverse Cholesky ordering.** Reordering leaves the reduced-form fit unchanged but redefines the orthogonal shocks. The 12-quarter GDP contribution to Δ unemployment FEVD moves from **44.86% (GDP first)** to **12.56% (unemployment first)**, and the impact response becomes exactly zero by construction. **Variance attribution is therefore not robust to identification.**
+VAR(1), VAR(3) and VAR(4) are re-estimated on a **common 138-quarter effective sample** for comparability. All produce negative initial responses to recursively identified GDP-growth innovations, although their impulse-response persistence and pointwise confidence-band exclusions vary. Full-sample and common-sample BG p-values are **not interchangeable**.
 
-**Pre-GFC sample.** A VAR(3) re-estimated on data through 2007Q4 checks sample sensitivity. It does not show the 2008–09 crisis is the only source of the full-sample diagnostic failures.
+![Lag sensitivity of GDP-to-unemployment response](output/09_lag_sensitivity_irf.png)
 
-**Financial-crisis dummies.** Separate impulse dummies for 2008Q4 and 2009Q1 provide a descriptive intervention check, not an economically identified crisis model.
+*Figure 5. IRF point estimates across VAR(1), VAR(3) and VAR(4), common estimation period. The comparative plot shows point estimates, not joint uncertainty bands.*
 
-**Omitted variables.** Labour-force participation, productivity, structural labour-market change and policy are not modelled. A two-variable system cannot separate common third-factor shocks.
+### Reverse Cholesky ordering
 
-**Data vintage.** `GDPC1` is revised regularly; strict numerical replication needs a fixed vintage (e.g. from ALFRED).
+Reversing the contemporaneous ordering leaves the **reduced-form predictive coefficients** unchanged apart from relabelling, but changes the identified shocks. The GDP innovation contribution to 12-quarter unemployment-change FEVD decreases from **44.86% (GDP first)** to **12.56% (unemployment first)**. Under the reversed ordering, GDP innovations have a **zero on-impact response of unemployment changes by construction**. The size of the FEVD contribution is thus **strongly identification-sensitive**. Comparing the shapes of separately normalized orthogonalized responses is informative but does not hold a common structural shock fixed.
 
-## 8. Figures
+### Pre-GFC subsample and crisis interventions
 
-| # | File | Description |
-|---|---|---|
-| 1 | `01_series.png` | GDP growth and Δ unemployment, 1984Q1–2019Q4 |
-| 2 | `08_okun_scatter.png` | Static Okun scatter with OLS line |
-| 3 | `03_irf_gdp_to_unemployment.png` | VAR(3) IRF, GDP shock → Δ unemployment |
-| 4 | `05_fevd.png` | VAR(3) forecast-error variance decomposition |
-| 5 | `09_lag_sensitivity_irf.png` | IRF across VAR(1), VAR(3), VAR(4) on a common sample |
+The script re-estimates a VAR(3) using observations through **2007Q4**, and separately estimates the full-sample VAR(3) with impulse indicators for **2008Q4 and 2009Q1**. These are sensitivity exercises: neither subsample diagnostics nor crisis dummies establish that the financial crisis was the unique cause of the full-sample failures. The crisis-dummy model is not a structural account of the recession.
 
-**Figure 4. Variance decomposition (GDP first).**
+### Two-variable information set
 
-![VAR(3) FEVD](output/05_fevd.png)
+The bivariate model omits labour-force participation, productivity, policy and other common macroeconomic drivers. Consequently, a recursive innovation may combine multiple sources of variation and should **not** be labelled an unambiguously exogenous economic shock.
+
+## 8. Supplemental figures
 
 <details>
-<summary><b>Additional figures: diagnostics, identification and sample sensitivity</b></summary>
+<summary>Expand: stability, reverse-direction response, alternative identification, pre-GFC response and residual scatter</summary>
 
-**Figure A1. OLS-CUSUM stability plots for both equations.**
+**Figure A1. OLS-CUSUM plots, GDP-growth and unemployment-change equations.**
 
-![CUSUM](output/02_cusum.png)
+![CUSUM checks](output/02_cusum.png)
 
-**Figure A2. VAR residuals (GDP growth vs Δ unemployment).**
+**Figure A2. GDP-growth response to a recursively identified unemployment-change innovation (GDP ordered first).** The zero impact response is imposed by the ordering. The displayed screenshot is from an earlier bootstrap run; re-generate with the consolidated script for the archival VAR(3) result.
 
-![VAR residuals](output/10_var_residuals.png)
+![Unemployment-change innovation to GDP growth](output/04_irf_unemployment_to_gdp.png)
 
-**Figure A3. Response of GDP growth to a Δ-unemployment innovation (GDP ordered first).**
+**Figure A3. GDP-growth innovation to unemployment-change response under the *reverse* Cholesky ordering.**
 
-![Reverse-direction IRF](output/04_irf_unemployment_to_gdp.png)
+![Reverse Cholesky IRF](output/06_irf_reverse_ordering.png)
 
-**Figure A4. GDP innovation → Δ unemployment under the reversed ordering (impact response is zero by construction).**
+**Figure A4. GDP-growth innovation to unemployment changes in the pre-GFC subsample.** This is an earlier sensitivity-plot screenshot; re-generate from the current VAR(3) script before an archival release.
 
-![Reverse ordering](output/06_irf_reverse_ordering.png)
+![Pre-GFC IRF](output/07_irf_pre_gfc.png)
 
-**Figure A5. GDP innovation → Δ unemployment, pre-GFC subsample (through 2007Q4).**
+**Figure A5. Scatterplot of VAR(3) reduced-form residuals.** This plot is descriptive; use the formal LM, JB and ARCH tests for diagnostics.
 
-![Pre-GFC subsample](output/07_irf_pre_gfc.png)
+![VAR residual scatter](output/10_var_residuals.png)
 
 </details>
 
-## 9. Reproducibility
+**Figure provenance note:** The provided numerical tables are from the documented VAR(3) console output. Some uploaded supplementary screenshots were originally produced using **999** bootstrap replications rather than the consolidated script's **1,999**. The graphical bootstrap replication count is printed on each image. **For an archival release, run the script from a clean session and recommit the newly generated `output/` folder** before asserting exact correspondence between every image and table. The numerical FEVD chart above has been redrawn from the reported VAR(3) FEVD table without modifying its shares.
 
-### Repository structure
+## 9. Replication instructions
+
+### Expected repository layout
 
 ```text
 US-OKUNS-LAW-VAR/
@@ -290,42 +274,38 @@ US-OKUNS-LAW-VAR/
     ├── 08_okun_scatter.png
     ├── 09_lag_sensitivity_irf.png
     ├── 10_var_residuals.png
-    └── table_*.csv
+    └── table_*.csv   (generated by the R script)
 ```
 
-### Quick start
+### Requirements and execution
+
+Developed with **R 4.5.0 (Windows)** and the packages `quantmod`, `zoo`, `urca`, `vars`, `sandwich` and `lmtest`. To install dependencies and run from the repository root:
 
 ```r
 install.packages(c("quantmod", "zoo", "urca", "vars", "sandwich", "lmtest"))
-source("Okun_Law_Bivariate_VAR.R")   # run from the repository root
+source("Okun_Law_Bivariate_VAR.R", echo = TRUE)
 ```
 
-The script downloads data from FRED (internet required), creates `output/`, writes the CSV tables and PNG figures, and prints estimates and tests to the console.
+The script downloads FRED observations, constructs the variables, prints estimates and diagnostics in the console, and creates figures/tables in `output/`. It uses `GRANGER_BOOT <- 4999L` and `IRF_RUNS <- 1999L`; lower counts may be used for debugging only. The random seeds are set in the script. Outputs may differ marginally after FRED revisions and across software versions. `sessionInfo()` is printed at the end of the run.
 
-| Item | Detail |
-|---|---|
-| R version | 4.5.0 (Windows) |
-| Packages | `quantmod`, `zoo`, `urca`, `vars`, `sandwich`, `lmtest` |
-| Granger bootstrap | 4,999 runs |
-| IRF bootstrap | 1,999 runs (main VAR(3) IRF) |
-| Data | Live FRED download (not a fixed vintage) |
+**Verification checklist:** The script should finish without error and reproduce, to reasonable numerical tolerance, the 144 transformed observations, the selected-lag criteria, the baseline VAR(3) diagnostic values, the Granger results and the FEVD shares reported above. Confirm that each plot actually depicts its filename before uploading. For strict reproducibility independent of new revisions, archive a data snapshot or use a documented fixed vintage through [ALFRED](https://fred.stlouisfed.org/).
 
-Changing bootstrap settings changes Monte Carlo precision and may shift reported p-values and interval endpoints.
-
-**Reproducibility status.** Reported numbers come from R console runs of the VAR(3) analysis. Before treating the repository as an archival replication package, run the consolidated script once in a fresh R session, confirm it regenerates every table and figure above, and record package versions (`sessionInfo()`) and a fixed FRED/ALFRED vintage.
+**Execution status:** The econometric results were obtained from the user's R console runs. The consolidated source has been reviewed and the figure mapping corrected, but the *full modified script has not been executed independently in R* as part of this package preparation.
 
 ## 10. References
 
-- Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. *Journal of the American Statistical Association*, 74(366), 427–431.
-- Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. *Econometrica*, 37(3), 424–438.
-- Kwiatkowski, D., Phillips, P. C. B., Schmidt, P., & Shin, Y. (1992). Testing the null hypothesis of stationarity against the alternative of a unit root. *Journal of Econometrics*, 54(1–3), 159–178.
-- Newey, W. K., & West, K. D. (1987). A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix. *Econometrica*, 55(3), 703–708.
-- Okun, A. M. (1962). Potential GNP: Its measurement and significance. *Proceedings of the Business and Economic Statistics Section*, American Statistical Association.
-- Pfaff, B. (2008). VAR, SVAR and SVEC models: Implementation within R package `vars`. *Journal of Statistical Software*, 27(4), 1–32.
-- Phillips, P. C. B., & Perron, P. (1988). Testing for a unit root in time series regression. *Biometrika*, 75(2), 335–346.
-- U.S. Bureau of Economic Analysis. Real Gross Domestic Product [`GDPC1`]. FRED. https://fred.stlouisfed.org/series/GDPC1
-- U.S. Bureau of Labor Statistics. Unemployment Rate [`UNRATE`]. FRED. https://fred.stlouisfed.org/series/UNRATE
+- Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. *Journal of the American Statistical Association, 74*(366), 427–431.
+- Enders, W. (2015). *Applied Econometric Time Series* (4th ed.). Wiley.
+- Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. *Econometrica, 37*(3), 424–438.
+- Kwiatkowski, D., Phillips, P. C. B., Schmidt, P., & Shin, Y. (1992). Testing the null hypothesis of stationarity against the alternative of a unit root. *Journal of Econometrics, 54*(1–3), 159–178.
+- Lütkepohl, H. (2005). *New Introduction to Multiple Time Series Analysis*. Springer.
+- Newey, W. K., & West, K. D. (1987). A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix. *Econometrica, 55*(3), 703–708.
+- Okun, A. M. (1962). Potential GNP: Its measurement and significance. In *Proceedings of the Business and Economic Statistics Section*, American Statistical Association.
+- Pfaff, B. (2008). VAR, SVAR and SVEC models: Implementation within R package vars. *Journal of Statistical Software, 27*(4), 1–32.
+- Phillips, P. C. B., & Perron, P. (1988). Testing for a unit root in time series regression. *Biometrika, 75*(2), 335–346.
+- [US Bureau of Economic Analysis — Real Gross Domestic Product (GDPC1), FRED](https://fred.stlouisfed.org/series/GDPC1).
+- [US Bureau of Labor Statistics — Civilian Unemployment Rate (UNRATE), FRED](https://fred.stlouisfed.org/series/UNRATE).
 
 ---
 
-*Research code and results are provided for academic examination and replication. The analysis concerns predictive relationships and assumption-identified innovations and should not be read as establishing structural causal effects.*
+**Scope:** Applied empirical research; findings concern conditional prediction and recursively identified innovations, not verified structural causal effects. See the diagnostic and identification cautions above.
